@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Jouons</title>
+<script src="maze_levels.js"></script>
+<style>
+
+#main {
+	text-align: center;
+}
+
+#logo {
+	border-radius: 10px;
+	margin: 30px;
+}
+
+#comment {
+	height: 250px;
+	font-size: x-large;
+	vertical-align: top;
+	display: inline-block;
+	border: 2px solid #aa0;
+	border-radius: 10px;
+	padding: 20px;
+	margin-right: 20px;
+}
+
+#board {
+	position: relative;
+	top: 0px;
+	left: 0px;
+	display: inline-block;
+	border: 5px solid #aa0;
+	border-radius: 10px;
+}
+
+#level {
+	font-size: xx-large;
+	border: 2px solid #aa0;
+	border-radius: 10px;
+	padding: 5px;
+}
+
+#rules {
+	font-size: large;
+}
+
+#ball {
+	width: 60px;
+	position: absolute;
+	border: 0px solid red;
+}
+
+#hole {
+	width: 90%;
+	height: 90%;
+	display: block;
+	margin: auto;
+	border: 0px solid black;
+}
+
+td {
+	background-color: #aedf7a;
+	text-align: center;
+	vertical-align: middle;
+}
+
+table {
+	border-spacing: 0px;
+}
+
+</style>
+
+<script>
+"use strict";
+
+var board = {
+
+	fenceWidth : 3,
+	cellSize : 50,
+	ballRadius : 15,
+	ballRadiusInit : 15,
+
+	currentLevel : 0,
+
+	gridSize : {},
+
+	ballPos : {},
+
+	ballElem : undefined,
+
+	setLevel : function(level) {
+		if(level < levels.length) {
+			document.getElementById("level").innerHTML = "Level ";
+			document.getElementById("level").innerHTML += (level + 1);
+			this.currentLevel = level;
+			this.startPos = levels[level].startPos;
+			this.winRC = levels[level].winRC;
+			this.fencesV = levels[level].fencesV;
+			this.fencesH = levels[level].fencesH;
+			this.makeGrid();
+		} else {
+			document.getElementById("comment").innerHTML = "Game completed !";
+		}
+
+	},
+
+	makeGrid : function () {
+		var x, y;
+		var r, c;
+		var i;
+		var tds;
+		var table;
+		var tr;
+		var td;
+		var board;
+
+		this.ballRadius = this.ballRadiusInit;
+
+		this.ballElem = document.getElementById("ball");	
+		this.ballElem.style.width = this.ballRadius*2 + "px";
+
+		this.gridSize.r = this.fencesV.length;
+		this.gridSize.c = this.fencesH[0].length;
+
+		board = document.getElementById("board");
+
+		table = document.getElementById("grid");
+		if(table) {
+			table.remove();	
+		}
+
+		table = document.createElement("table");
+		table.id = "grid";
+		board.appendChild(table);
+		for(r=0; r < this.gridSize.r; r++) {
+			tr = document.createElement("tr");
+			table.appendChild(tr);
+			for(c=0; c < this.gridSize.c; c++) {
+				td = document.createElement("td");
+				tr.appendChild(td);
+
+				td.style.width = this.cellSize + "px";
+				td.style.height = this.cellSize + "px";
+
+				if(this.fencesV[r][c] === 1) {
+					td.style.borderRight = this.fenceWidth + "px solid #999999";
+				} else {
+					td.style.borderRight = this.fenceWidth + "px solid #aedf7a";
+				}
+
+				if(this.fencesV[r][c-1] === 1) {
+					td.style.borderLeft = this.fenceWidth + "px solid #555555";
+				} else {
+					td.style.borderLeft = this.fenceWidth + "px solid #aedf7a";
+				}
+
+				if(r < this.fencesH.length && this.fencesH[r][c] === 1) {
+					td.style.borderBottom = this.fenceWidth + "px solid #999999";
+				} else {
+					td.style.borderBottom = this.fenceWidth + "px solid #aedf7a";
+				}
+				if(r-1 >= 0 && this.fencesH[r-1][c] === 1) {
+					td.style.borderTop = this.fenceWidth + "px solid #555555";
+				} else {
+					td.style.borderTop = this.fenceWidth + "px solid #aedf7a";
+				}
+
+				if(r === this.winRC.r && c === this.winRC.c) {
+					td.innerHTML = "<img id='hole' src='hole.png' rc='" + r + ":" + c + "'>";
+				}
+
+				td.setAttribute("rc", String(r)+":"+String(c));
+				td.addEventListener("click", clickCommand, true);
+
+			}
+		}
+		
+		this.setBallPosRC(this.startPos);
+	},
+
+	mid : function(r, c) {
+		var x, y;
+
+		x = (((2*c)+1)*this.fenceWidth)+(c*(this.cellSize+2)) + this.cellSize/2;
+		y = (((2*r)+1)*this.fenceWidth)+(r*(this.cellSize+2)) + this.cellSize/2;
+		return {"x": x, "y": y};
+	},
+
+	moveBallToRC : function(newPos) {
+
+		//console.log("old : " , this.ballPos);
+		//console.log("new " , newPos);
+		var start;
+		var nbMove;
+		var x1, y1;
+		var x2, y2;
+		var deltaX, deltaY;
+		var that;
+
+		x1 = this.ballPos.x;
+		y1 = this.ballPos.y;
+
+		x2 = this.mid(newPos.r, newPos.c).x;
+		y2 = this.mid(newPos.r, newPos.c).y;
+
+		nbMove = 10;
+		deltaX = (x2-x1)/nbMove;
+		deltaY = (y2-y1)/nbMove;
+
+		that = this;
+		start = null;
+		function step(timestamp) {
+			//console.log(start + " : " + timestamp);
+			var progress;
+			if (start === null) {
+				start = timestamp;
+			}
+			progress = timestamp - start;
+			that.setBallPosXY(x1, y1);
+			x1 = x1 + deltaX;
+			y1 = y1 + deltaY;
+			nbMove--;
+			if (nbMove >= 0) {
+				requestAnimationFrame(step);
+			} else {
+				that.setBallPosRC(newPos);
+				that.testWin();
+			}
+		}
+
+		requestAnimationFrame(step);
+	},
+
+	setBallPosRC : function(posRC) {
+		var x, y;
+
+		x = this.mid(posRC.r, posRC.c).x;
+		y = this.mid(posRC.r, posRC.c).y;
+		this.ballPos.r = posRC.r;
+		this.ballPos.c = posRC.c;
+		this.setBallPosXY(x, y);
+	},
+
+	setBallPosXY : function(x,y) {
+		this.ballPos.x = x;
+		this.ballPos.y = y;
+
+		this.ballElem.style.left = x - this.ballRadius + "px";
+		this.ballElem.style.top = y - this.ballRadius + "px";
+	},
+
+	moveBallToDir: function(dir) {
+		var r, c;
+		var fence;
+
+		r = this.ballPos.r;
+		c = this.ballPos.c;
+
+		while(this.rc2fences(r, c)[dir] === 0) {
+			if(dir === "h") {
+				r--;
+			} else if(dir === "b") {
+				r++;
+			} else if(dir === "g") {
+				c--;
+			} else if(dir === "d") {
+				c++;
+			}
+		}
+		this.moveBallToRC({"r": r, "c": c});
+				
+	},
+
+	rc2fences : function(r, c) {
+		if(r-1 < 0) {
+			h = 1;
+		}
+		if(r >= this.fencesH.length) {
+			b = 1;
+		}
+		if(c-1 < 0) {
+			g = 1;
+		}
+		if(c >= this.fencesV[0].length) {
+			d = 1;
+		}
+		var h = h || this.fencesH[r-1][c];
+		var b = b || this.fencesH[r][c];
+		var g = g || this.fencesV[r][c-1];
+		var d = d || this.fencesV[r][c];
+
+		return {"h": h, "b": b, "g": g, "d": d};
+	},
+
+	testWin : function() {
+		var that;
+		var start;
+		var animLength;
+		var startRayon;
+
+		start = null;
+		animLength = 1000;
+
+		startRayon = this.ballRadius;
+		if(this.ballPos.r === this.winRC.r && this.ballPos.c === this.winRC.c) {
+
+			that = this;
+			var audio = new Audio('elevator.mp3');
+			audio.play();
+			var step = function(timestamp) {
+				//console.log(start + " : " + timestamp);
+				var progress;
+				if (start === null) {
+					start = timestamp;
+				}
+				progress = timestamp - start;
+				//console.log(progress, progress / animLength);
+
+				that.ballRadius = startRayon * (1-(progress / animLength));
+				that.ballElem.style.width = that.ballRadius*2 + "px";
+				that.setBallPosRC(that.winRC);
+
+				if (progress < animLength) {
+					requestAnimationFrame(step);
+				} else {
+					that.setLevel(that.currentLevel + 1);
+				}
+			}
+
+			requestAnimationFrame(step);
+		}
+	}
+
+}
+
+function clickCommand(e) {
+	var rc;
+	var r, c;
+
+	rc = e.target.getAttribute("rc");
+	r = Number(rc.split(":")[0]);
+	c = Number(rc.split(":")[1]);
+
+	if(r === board.ballPos.r && c > board.ballPos.c) {
+		board.moveBallToDir("d");
+	} else if (r === board.ballPos.r && c < board.ballPos.c) {
+		board.moveBallToDir("g");
+	} else if (c === board.ballPos.c && r < board.ballPos.r) {
+		board.moveBallToDir("h");
+	} else if (c === board.ballPos.c && r > board.ballPos.r) {
+		board.moveBallToDir("b");
+	}
+
+	//console.log(r + " " +c);
+}
+
+function keyCommand(e) {
+	var pos = {};
+
+	pos.r = board.ballPos.r;
+	pos.c = board.ballPos.c;
+
+	if(e.keyCode === 37) {
+		board.moveBallToDir("g");
+	} else if(e.keyCode === 38) {
+		board.moveBallToDir("h");
+	} else if(e.keyCode === 39) {
+		board.moveBallToDir("d");
+	} else if(e.keyCode === 40) {
+		board.moveBallToDir("b");
+	} else if(e.key.toUpperCase() === "R") {
+		board.setLevel(board.currentLevel);
+	}
+}
+
+function start() {
+	window.addEventListener("keydown", keyCommand);
+	board.setLevel(0);
+}
+
+window.window.addEventListener("load", start);
+
+</script>
+
+</head>
+
+<body>
+
+	<div id="main">
+
+		<div id="comment">
+			<span id="level"></span>
+			<p id="rules">
+			Move the ball with
+			<br>
+			keyboard arrows
+			<br>or<br>
+			click on board
+			<br/> <br/>
+			Press R to restart level
+			</p>
+		</div>
+
+		<div id="board">
+			<img id="ball" src="golfBall.svg">
+		</div>
+
+	</div>
+
+</body>
+
+</html>
