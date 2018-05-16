@@ -81,6 +81,7 @@ var board = {
 	cellSize : 50,
 	ballRadius : 15,
 	ballRadiusInit : 15,
+	animation : false,
 
 	currentLevel : 0,
 
@@ -210,6 +211,7 @@ var board = {
 		deltaY = (y2-y1)/nbMove;
 
 		that = this;
+		this.animation = true;
 		start = null;
 		function step(timestamp) {
 			//console.log(start + " : " + timestamp);
@@ -226,6 +228,7 @@ var board = {
 				requestAnimationFrame(step);
 			} else {
 				that.setBallPosRC(newPos);
+				that.animation = false;
 				that.testWin();
 			}
 		}
@@ -362,16 +365,18 @@ function keyCommand(e) {
 	pos.r = board.ballPos.r;
 	pos.c = board.ballPos.c;
 
-	if(e.keyCode === 37) {
-		board.moveBallToDir("g");
-	} else if(e.keyCode === 38) {
-		board.moveBallToDir("h");
-	} else if(e.keyCode === 39) {
-		board.moveBallToDir("d");
-	} else if(e.keyCode === 40) {
-		board.moveBallToDir("b");
-	} else if(e.key.toUpperCase() === "R") {
-		board.setLevel(board.currentLevel);
+	if(!board.animation) {
+		if(e.keyCode === 37) {
+			board.moveBallToDir("g");
+		} else if(e.keyCode === 38) {
+			board.moveBallToDir("h");
+		} else if(e.keyCode === 39) {
+			board.moveBallToDir("d");
+		} else if(e.keyCode === 40) {
+			board.moveBallToDir("b");
+		} else if(e.key.toUpperCase() === "R") {
+			board.setLevel(board.currentLevel);
+		}
 	}
 }
 
